@@ -41,6 +41,8 @@ def choose():
         return f"Stop not found: {stop_name}"
 
     stop_id = matched_stops.iloc[0]['stop_id']
+    lat = matched_stops.iloc[0]['stop_lat']
+    lon = matched_stops.iloc[0]['stop_lon']
 
     now = datetime.now()
     now_time = now.time()
@@ -65,13 +67,33 @@ def choose():
     df['route_short_name'] = df['route_short_name'].replace({'T1.3': 'T1'})
 
     # Create HTML output
-    output = f"<h2>Upcoming departures from:<br>📍<strong>{stop_name}</strong><br>⌛in the next 5 minutes</h2><ul>"
+    output = f"<h2>Upcoming departures from:<br>📍<strong>{stop_name}</strong><br>⌛in the next 5 minutes</h2>"
     for row in df.sort_values(by='departure_time').itertuples(index=False):
         time_str = row.departure_time.strftime('%H:%M')
-        emoji = '🟢' if row.route_short_name == 'T1' else '🔵' if row.route_short_name == 'T2' else '🚋'
+        emoji = '🔵' if row.route_short_name == 'T1' else '🔴' if row.route_short_name == 'T2' else '🚋'
         output += f"🕓 {time_str} {emoji} {row.route_short_name}➡️{row.trip_headsign}<br>"
 
-    return output
+
+    return render_template_string(f"""
+        {output}
+    <br>
+    <br><div id="map"></div>
+    <style>#map {{ height: 300px; width: 600px; }}</style>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+      var map = L.map('map').setView([{lat}, {lon}], 16);
+      L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+          maxZoom: 19,
+      }}).addTo(map);
+      L.marker([{lat}, {lon}]).addTo(map)
+        .bindPopup("📍 {stop_name}")
+        .openPopup();
+    </script>
+    <br>🔄<a href="/">Choose another stop</a>
+    """)
 
 if __name__ == "__main__":
     app.run(debug=True)
